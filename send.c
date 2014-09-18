@@ -81,6 +81,7 @@ int main(int argc,char** argv)
 	}
 
 	printf("** Connected to %s:%d\n",addr,port);
+	printf("Send Buffer Size:%d bytes\n",send_buf_size);
 
 	pthread_t tid;
 	if(pthread_create(&tid,NULL,monitor,NULL)!=0)
