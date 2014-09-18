@@ -3,9 +3,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <strings.h>
+#include <unistd.h>
+#include <pthread.h>
 
-#define BACKLOG 5
-#define PORT 8888
 
 void err(char* err)
 {
@@ -13,10 +13,52 @@ void err(char* err)
 	exit(1);
 }
 
-int process_conn(int cli_sock);
+/*
+ * global variables
+ */
+int sum_recv_bytes = 0;
+pthread_mutex_t lock;
 
-int main()
+/*
+ * options
+ */
+
+int backlog = 5;
+unsigned short port = 8888;
+int recv_buf_size = 1024;
+
+/*
+ * function declarations
+ */
+int process_conn(int cli_sock);
+void* monitor(void* p);
+void add_bytes(int add);
+int read_bytes();
+
+int parse_args(int argc,char** argv)
 {
+	int c;
+	while((c=getopt(argc,argv,"b:p:r:"))!=-1)
+	{
+		switch(c)
+		{
+			case 'b':
+				backlog = atoi(optarg);
+				break;
+			case 'p':
+				port = atoi(optarg);
+				break;
+			case 'r':
+				recv_buf_size = atoi(optarg);
+				break;
+		}
+	}
+	return 0;
+}
+
+int main(int argc,char** argv)
+{
+	parse_args(argc,argv);
 	int sock = socket(AF_INET,SOCK_STREAM,0);
 	if(sock==-1)
 	{
@@ -26,7 +68,7 @@ int main()
 	struct sockaddr_in listen_addr;
 	bzero(&listen_addr,sizeof(listen_addr));
 	listen_addr.sin_family = AF_INET;
-	listen_addr.sin_port = htons(PORT);
+	listen_addr.sin_port = htons(port);
 	listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	socklen_t len = sizeof(listen_addr);
@@ -36,9 +78,25 @@ int main()
 		err("bind");
 	}
 
-	if(listen(sock,BACKLOG)==-1)
+	if(listen(sock,backlog)==-1)
 	{
 		err("listen");
+	}
+
+	printf("Listening port: %d\n",port);
+	printf("Backlog: %d\n",backlog);
+	printf("RecvBufferSize: %d\n",recv_buf_size);
+
+	// Init lock
+	if(pthread_mutex_init(&lock,NULL)!=0)
+	{
+		err("pthread_mutex_init");
+	}
+
+	pthread_t tid;
+	if(pthread_create(&tid,NULL,monitor,NULL)!=0)
+	{
+		err("pthread_create");
 	}
 	
 	for(;;)
@@ -61,11 +119,11 @@ int main()
 
 int process_conn(int cli_sock)
 {
-	char buf[1024];
+	char *buf = malloc(recv_buf_size);
 	for(;;)
 	{
 		int ret;
-		if((ret=recv(cli_sock,buf,sizeof(buf),0))==-1)
+		if((ret=recv(cli_sock,buf,recv_buf_size,0))==-1)
 		{
 			err("recv");
 		}
@@ -74,8 +132,39 @@ int process_conn(int cli_sock)
 			printf("EOF\n");
 			break;
 		}
-		printf("Received:%s\n",buf);
+		else
+		{
+			add_bytes(ret);
+		}
 	}
 
 	return 0;
+}
+
+void* monitor(void* p)
+{
+	for(;;)
+	{
+		int bytes = read_bytes();
+		printf("%d mb/s\n",bytes/1024/1024);
+		sleep(1);
+	}
+	return 0;
+}
+
+void add_bytes(int add)
+{
+	pthread_mutex_lock(&lock);
+	sum_recv_bytes += add;
+	pthread_mutex_unlock(&lock);
+}
+
+int read_bytes()
+{
+	int bytes ;
+	pthread_mutex_lock(&lock);
+	bytes = sum_recv_bytes;
+	sum_recv_bytes = 0;
+	pthread_mutex_unlock(&lock);
+	return bytes;
 }
