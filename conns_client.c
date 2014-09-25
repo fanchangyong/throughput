@@ -70,6 +70,7 @@ int main(int argc,char** argv)
 		}
 	}
 	
+	int count = 0;
 
 	i=1;
 	for(;;)
@@ -97,7 +98,7 @@ int main(int argc,char** argv)
 
 		if(connect(sock,(const struct sockaddr*)&server_addr,len)==0)
 		{
-			printf("[OK]\n");
+			printf("[OK],%d\n",count++);
 		}
 		else
 		{
