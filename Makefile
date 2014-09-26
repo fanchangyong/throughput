@@ -19,7 +19,7 @@ conns_client:conns_client.c
 	cc -o conns_client conns_client.c
 
 conns_server_epoll:conns_server_epoll.c
-	cc -o conns_server_epoll conns_server_epoll.c
+	cc -o conns_server_epoll conns_server_epoll.c -pthread
 
 .PHONY: clean
 
