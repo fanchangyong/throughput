@@ -13,9 +13,10 @@
 
 extern int errno;
 
+char* remote_addr = "127.0.0.1";
 char *addrs[1024];
 unsigned short port = 8888;
-int send_buf_size = 1024;
+int count = 0;
 
 int parse_args(int argc,char** argv)
 {
@@ -25,18 +26,18 @@ int parse_args(int argc,char** argv)
 		switch(c)
 		{
 			case 's':
-				send_buf_size = atoi(optarg);
 				break;
 		}
 	}
 
-	int i=0;
-	while(optind<argc)
+	if(optind<argc)
 	{
-		printf("optind:%d,i:%d,argc:%d\n",optind,i,argc);
-		addrs[i] = strdup(argv[optind]);
-		i++;
-		optind++;
+		remote_addr = strdup(argv[optind++]);
+	}
+
+	if(optind<argc)
+	{
+		port = atoi(argv[optind++]);
 	}
 
 	return 0;
@@ -48,11 +49,72 @@ void err(char* err)
 	exit(1);
 }
 
+void* conn(void* p)
+{
+	printf("thread:%d\n",(int)p);
+	int i=0;
+	for(;;)
+	{
+		if(!addrs[i])
+		{
+			break;
+		}
+		char* addr = addrs[i];
+
+		struct sockaddr_in server_addr;
+		bzero(&server_addr,sizeof(server_addr));
+		server_addr.sin_family = AF_INET;
+		server_addr.sin_port = htons(port);
+		inet_aton(remote_addr,&server_addr.sin_addr);
+
+		socklen_t len = sizeof(server_addr);
+
+		int sock = socket(AF_INET,SOCK_STREAM,0);
+		struct sockaddr_in clt_addr;
+		clt_addr.sin_family = AF_INET;
+		clt_addr.sin_port = htons(0);
+		inet_aton(addr,&clt_addr.sin_addr);
+
+		if(bind(sock,(struct sockaddr*)&clt_addr,len)!=0)
+		{
+			perror("bind");
+			i++;
+			continue;
+		}
+
+		if(sock==-1)
+		{
+			err("socket");
+		}
+		//printf("Binding to:[%s]\n",addr);
+
+		if(connect(sock,(const struct sockaddr*)&server_addr,len)==0)
+		{
+			count++;
+			//printf("connect [OK],%d\n",count++);
+		}
+		else
+		{
+			printf("connect [FAIL],%s\n",strerror(errno));
+			i++;
+		}
+	}
+	return NULL;
+}
+
+void* stat(void* p)
+{
+	for(;;)
+	{
+		printf("%d connections\n",count);
+		sleep(1);
+	}
+}
+
 int main(int argc,char** argv)
 {
 	bzero(&addrs,sizeof(addrs));
 	parse_args(argc,argv);
-
 
 	int i = 0;
 	if(!addrs[0])
@@ -74,42 +136,21 @@ int main(int argc,char** argv)
 			}
 		}
 	}
+
+	pthread_t threads[5];
 	
-	int count = 0;
-
-	i=0;
-	for(;;)
+	for(i=0;i<4;i++)
 	{
-		if(!addrs[i])
+		if(pthread_create(&threads[i],NULL,conn,(void*)i)!=0)
 		{
-			break;
+			err("pthread_create");
 		}
-		char* addr = addrs[i];
+	}
+	pthread_create(&threads[4],NULL,stat,NULL);
 
-		struct sockaddr_in server_addr;
-		bzero(&server_addr,sizeof(server_addr));
-		server_addr.sin_family = AF_INET;
-		server_addr.sin_port = htons(port);
-		inet_aton(addr,&server_addr.sin_addr);
-
-		socklen_t len = sizeof(server_addr);
-
-		int sock = socket(AF_INET,SOCK_STREAM,0);
-		if(sock==-1)
-		{
-			err("socket");
-		}
-		printf("Connecting to:[%s:%d],",addr,port);
-
-		if(connect(sock,(const struct sockaddr*)&server_addr,len)==0)
-		{
-			printf("[OK],%d\n",count++);
-		}
-		else
-		{
-			printf("[FAIL],%s\n",strerror(errno));
-			i++;
-		}
+	for(i=0;i<5;i++)
+	{
+		pthread_join(threads[i],NULL);
 	}
 
 	return 0;
