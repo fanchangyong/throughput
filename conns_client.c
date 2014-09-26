@@ -10,7 +10,7 @@
 
 extern int errno;
 
-char* addr = "127.0.0.1";
+char *addrs[1024];
 unsigned short port = 8888;
 int send_buf_size = 1024;
 
@@ -27,13 +27,13 @@ int parse_args(int argc,char** argv)
 		}
 	}
 
-	if(optind<argc)
+	int i=0;
+	while(optind<argc)
 	{
-		addr = strdup(argv[optind++]);
-	}
-	if(optind<argc)
-	{
-		port = atoi(argv[optind++]);
+		printf("optind:%d,i:%d,argc:%d\n",optind,i,argc);
+		addrs[i] = strdup(argv[optind]);
+		i++;
+		optind++;
 	}
 
 	return 0;
@@ -47,32 +47,34 @@ void err(char* err)
 
 int main(int argc,char** argv)
 {
+	bzero(&addrs,sizeof(addrs));
 	parse_args(argc,argv);
 
-	struct ifaddrs* ifap;
-	if(getifaddrs(&ifap)!=0)
-	{
-		err("getifaddrs");
-	}
-
-	char *addrs[1024];
-	bzero(&addrs,sizeof(addrs));
 
 	int i = 0;
-	for(;ifap;ifap=ifap->ifa_next)
+	if(!addrs[0])
 	{
-		if(ifap->ifa_addr && ifap->ifa_addr->sa_family == AF_INET)
+		struct ifaddrs* ifap;
+		if(getifaddrs(&ifap)!=0)
 		{
-			char* str_addr = 
-				inet_ntoa(((struct sockaddr_in*)ifap->ifa_addr)->sin_addr);
-			
-			addrs[i++] = strdup(str_addr);
+			err("getifaddrs");
+		}
+
+		for(;ifap;ifap=ifap->ifa_next)
+		{
+			if(ifap->ifa_addr && ifap->ifa_addr->sa_family == AF_INET)
+			{
+				char* str_addr = 
+					inet_ntoa(((struct sockaddr_in*)ifap->ifa_addr)->sin_addr);
+				
+				addrs[i++] = strdup(str_addr);
+			}
 		}
 	}
 	
 	int count = 0;
 
-	i=1;
+	i=0;
 	for(;;)
 	{
 		if(!addrs[i])
@@ -94,7 +96,7 @@ int main(int argc,char** argv)
 		{
 			err("socket");
 		}
-		printf("Connecting to:[%s],",addr);
+		printf("Connecting to:[%s:%d],",addr,port);
 
 		if(connect(sock,(const struct sockaddr*)&server_addr,len)==0)
 		{
