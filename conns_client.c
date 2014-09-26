@@ -7,6 +7,9 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
+#include <string.h>
+
+#include <errno.h>
 
 extern int errno;
 
