@@ -141,7 +141,7 @@ int main(int argc,char** argv)
 	
 	for(i=0;i<4;i++)
 	{
-		if(pthread_create(&threads[i],NULL,conn,(void*)i)!=0)
+		if(pthread_create(&threads[i],NULL,conn,(void*)(long)i)!=0)
 		{
 			err("pthread_create");
 		}

@@ -1,3 +1,11 @@
+#ifndef linux
+#include <stdio.h>
+int main()
+{
+	printf("Only support Linux!\n");
+	return 0;
+}
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -150,3 +158,4 @@ int main(int argc,char** argv)
 
 }
 
+#endif
