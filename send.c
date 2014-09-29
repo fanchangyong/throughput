@@ -26,7 +26,7 @@ int send_buf_size = 1024;
 void* monitor(void* p);
 void add_bytes(int add);
 int read_bytes();
-int send_msg(int sock);
+void* send_msg(void*);
 
 int parse_args(int argc,char** argv)
 {
@@ -90,13 +90,18 @@ int main(int argc,char** argv)
 		err("pthread_create");
 	}
 
-	send_msg(sock);
+	int threads = 0;
+	for(;threads<4;threads++)
+	{
+		send_msg(&sock);
+	}
 
 	return 0;
 }
 
-int send_msg(int sock)
+void* send_msg(void* p)
 {
+	int sock = *(int*)p;
 	char* buf = malloc(send_buf_size);
 	for(;;)
 	{
@@ -123,7 +128,7 @@ void* monitor(void* p)
 	for(;;)
 	{
 		int bytes = read_bytes();
-		printf("%d mb/s\n",bytes/1024/1024);
+		printf("%d kb/s\n",bytes/1024);
 		sleep(1);
 	}
 	return 0;
