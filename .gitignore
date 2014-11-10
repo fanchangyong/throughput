@@ -5,3 +5,6 @@ rdisk
 conns_client
 conns_server
 conns_server_epoll
+conns_clt
+conns_client_kqueue
+a.out

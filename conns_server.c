@@ -18,7 +18,19 @@ void err(char* err)
 	exit(1);
 }
 
-int backlog = 5;
+int backlog = 10000;
+int count = 0;
+
+void* stat(void* p)
+{
+	for(;;)
+	{
+		printf("count:%d\n",count);
+		count = 0;
+		sleep(1);
+	}
+	return NULL;
+}
 
 int main(int argc,char** argv)
 {
@@ -51,21 +63,20 @@ int main(int argc,char** argv)
 
 	printf("Listening port: %d\n",port);
 
-	int count = 0;
+
+	pthread_t t;
+	pthread_create(&t,NULL,stat,NULL);
 
 	for(;;)
 	{
-		struct sockaddr_in client_addr;
-		socklen_t len = sizeof(client_addr);
 		int cli_sock;
-		if((cli_sock = accept(sock,(struct sockaddr*)&client_addr,&len))==-1)
+		if((cli_sock = accept(sock,NULL,NULL))==-1)
 		{
 			err("accept");
 		}
 		else
 		{
-			char* str_addr = inet_ntoa(client_addr.sin_addr);
-			printf("Accepted a client:%s:%d[%d]\n",str_addr,client_addr.sin_port,++count);
+			++count;
 		}
 	}
 }

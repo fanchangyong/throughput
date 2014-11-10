@@ -1,5 +1,5 @@
 all:recv send wdisk rdisk conns_server conns_client conns_server_epoll \
-	conns_client_kqueue
+	conns_client_kqueue conns_clt
 
 recv:recv.c
 	cc -o recv recv.c -pthread
@@ -24,6 +24,9 @@ conns_server_epoll:conns_server_epoll.c
 
 conns_client_kqueue:conns_client_kqueue.c
 	cc -o conns_client_kqueue conns_client_kqueue.c -pthread
+
+conns_clt:conns_clt.c
+	cc -o conns_clt conns_clt.c -pthread
 
 .PHONY: clean
 
